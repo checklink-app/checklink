@@ -1,3 +1,5 @@
+
+
 from flask import Flask, request
 from datetime import datetime
 import os
@@ -22,12 +24,15 @@ STATS = {
 # LOGGING
 # =========================
 def log_check(url, score, label, reasons):
-    with open("checks.log", "a", encoding="utf-8") as f:
-        f.write(
-            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
-            f"{url} | {score} | {label} | "
-            f"{', '.join(reasons) if reasons else 'Κανένα εύρημα'}\n"
-        )
+    try:
+        with open("checks.log", "a", encoding="utf-8") as f:
+            f.write(
+                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
+                f"{url} | {score} | {label} | "
+                f"{', '.join(reasons) if reasons else 'Κανένα εύρημα'}\n"
+            )
+    except Exception:
+        pass  # αν το filesystem δεν επιτρέπει write (Railway), δεν κρασάρει
 
 # =========================
 # CORE LOGIC
@@ -88,7 +93,7 @@ def home():
         </form>
 
         <p style="margin-top:20px;color:#777;">
-            🔢 Συνολικοί έλεγχοι σήμερα: {STATS["total_checks"]}
+            🔢 Έλεγχοι σήμερα: {STATS["total_checks"]}
         </p>
     </body>
     </html>
@@ -96,10 +101,12 @@ def home():
 
 @app.route("/check")
 def check():
-    url = request.args.get("u")
+    url = request.args.get("u", "").strip()
+
     if not url:
         return "Δεν δόθηκε link"
 
+    # reset daily counter
     today = datetime.now().date()
     if STATS["today"] != today:
         STATS["today"] = today
@@ -134,7 +141,9 @@ def check():
         <div class="box">
             <p><b>Link:</b> {url}</p>
             <p class="score">{label} ({score}/100)</p>
-            <ul>{reasons_html}</ul>
+            <ul>
+                {reasons_html}
+            </ul>
             <a href="{url}" target="_blank">👉 Συνέχεια στο link</a>
         </div>
 
@@ -154,3 +163,9 @@ def check():
     </html>
     """
 
+# =========================
+# RUN (Railway compatible)
+# =========================
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
